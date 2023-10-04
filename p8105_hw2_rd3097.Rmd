@@ -1,0 +1,118 @@
+---
+title: "p8105_hw2_rd3097"
+author: "RUOYING DENG"
+date: "2023-10-03"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+### Problem 1
+
+```{r}
+month_df = 
+  tibble(
+    month_num = 1:12,
+    month_abb = month.abb,
+    month = month.name
+  )
+# We input the data from the file, then clean data in the pols-month.csv 
+Pols_month = 
+  read.csv("pols-month.csv")|>
+  separate(mon, into = c("year", "month", "date"), convert = 
+TRUE)|>
+   mutate(
+    year = as.numeric(year),
+    month = month.name[as.numeric(month)],
+    president = recode(prez_gop, "0" = "dem", "1" = "gop", "2" = "gop")) |>
+  select(year, month, everything(),-prez_dem,-prez_gop,-date)
+Pols_month
+
+```
+
+```{r}
+#Similarly inputing data from snp.csv and then clean the data
+snp = read.csv("snp.csv")|>
+  mutate(
+    date = format(as.Date(date, format = "%m/%d/%y"), "%Y/%m/%d"
+    ) )|>
+  separate(date, into = c("year", "month", "day"), convert = TRUE) |>
+  mutate(
+    year = as.numeric(year),
+    month = month.name[as.numeric(month)],
+    year = if_else(year > 2023, year - 100, year)) |> 
+  left_join(x = _, y = month_df) |>
+  arrange(year,month)
+snp
+```
+
+```{r}
+#Then we input data from unemployment.csv,clean the data by switching from “wide” to “long” format
+unemployment = 
+  read.csv("unemployment.csv")
+
+colnames(unemployment)[1]<-"year"
+
+pivot_longer(unemployment,
+             Jan:Dec,
+             names_to = "month",
+             values_to = "unemployment"
+             )|>
+  left_join(x = _, y = month_df)|>
+  select(year, month, unemployment)
+unemployment             
+```
+
+```{r}
+#We then join the datasets by merging snp into pols, and merging unemployment into the result.
+result = 
+  left_join(Pols_month, snp) |>
+  left_join(x = _, y = unemployment)
+
+result
+```
+### Problem 2
+
+```{r}
+#Read and clean the Mr. Trash Wheel sheet:
+MrTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Mr. Trash Wheel",range = "A2:N586")|>
+  janitor::clean_names() |>
+  mutate(
+    year = as.numeric(year),
+    name = "Mr. Trash Wheel",
+    homes_powered = (500 * weight_tons/30)
+    )
+```
+
+```{r}
+#Read and clean the Professor Trash Wheel Sheet:
+ProfTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Professor Trash Wheel",range = "A2:M108")|>
+  janitor::clean_names() |>
+  mutate(
+    year = as.numeric(year),
+    name = "Professor Trash Wheel",
+    homes_powered = (500 * weight_tons/30)
+)
+```
+
+```{r}
+#Read and clean the Gwynnda Trash Wheel Sheet:
+GwynndaTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Gwynnda Trash Wheel",range = "A2:L157")|>
+  janitor::clean_names() |>
+  mutate(
+    year = as.numeric(year),
+    name = "Gwynnda Trash Wheel",
+    homes_powered = (500 * weight_tons/30)
+)
+```
+```{r}
+#Then combine Professor Trash Wheel and Gwynnda with the Mr. Trash Wheel dataset to produce a single tidy dataset
+tidy_data = bind_rows(MrTrash, ProfTrash, GwynndaTrash)|>
+  select(name, everything())
+```
+
+
+
