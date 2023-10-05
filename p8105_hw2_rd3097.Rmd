@@ -12,7 +12,7 @@ library(readxl)
 
 ### Problem 1
 
-```{r}
+```{r, message=FALSE}
 month_df = 
   tibble(
     month_num = 1:12,
@@ -29,11 +29,10 @@ TRUE)|>
     month = month.name[as.numeric(month)],
     president = recode(prez_gop, "0" = "dem", "1" = "gop", "2" = "gop")) |>
   select(year, month, everything(),-prez_dem,-prez_gop,-date)
-Pols_month
 
 ```
 
-```{r}
+```{r, message=FALSE}
 #Similarly inputing data from snp.csv and then clean the data
 snp = read.csv("snp.csv")|>
   mutate(
@@ -44,12 +43,11 @@ snp = read.csv("snp.csv")|>
     year = as.numeric(year),
     month = month.name[as.numeric(month)],
     year = if_else(year > 2023, year - 100, year)) |> 
-  left_join(x = _, y = month_df) |>
+
   arrange(year,month)
-snp
 ```
 
-```{r}
+```{r, message=FALSE}
 #Then we input data from unemployment.csv,clean the data by switching from “wide” to “long” format
 unemployment = 
   read.csv("unemployment.csv")
@@ -61,22 +59,29 @@ pivot_longer(unemployment,
              names_to = "month",
              values_to = "unemployment"
              )|>
-  left_join(x = _, y = month_df)|>
+
   select(year, month, unemployment)
-unemployment             
 ```
 
-```{r}
+```{r, message=FALSE}
 #We then join the datasets by merging snp into pols, and merging unemployment into the result.
 result = 
   left_join(Pols_month, snp) |>
   left_join(x = _, y = unemployment)
 
-result
 ```
+
+ 
+In the first dataset, `Pols_month` provides the number of politicians from democratic or republican at any given month from `r Pols_month |> pull(year) |> min()` to `r Pols_month |> pull(year) |> max()` . It has `r nrow(Pols_month)` observations and `r ncol(Pols_month)` variables with information of the party of president at that given month.
+
+In the second dataset, `snp` which provide information regarding Standard & Poor’s stock market index (S&P). It has `r nrow(snp)` observations and `r ncol(snp)` variables
+
+In the third dataset, `unemployment` provide unemployment rate of each month from `r unemployment |> pull(year) |> min()` to `r unemployment |> pull(year) |> max()`. It has `r nrow(unemployment)` observations and `r ncol(unemployment)` variables.
+
+The combined dataset
 ### Problem 2
 
-```{r}
+```{r, message=FALSE}
 #Read and clean the Mr. Trash Wheel sheet:
 MrTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Mr. Trash Wheel",range = "A2:N586")|>
   janitor::clean_names() |>
@@ -87,7 +92,7 @@ MrTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Mr. Tras
     )
 ```
 
-```{r}
+```{r, message=FALSE}
 #Read and clean the Professor Trash Wheel Sheet:
 ProfTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Professor Trash Wheel",range = "A2:M108")|>
   janitor::clean_names() |>
@@ -98,7 +103,7 @@ ProfTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Profes
 )
 ```
 
-```{r}
+```{r, message=FALSE}
 #Read and clean the Gwynnda Trash Wheel Sheet:
 GwynndaTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Gwynnda Trash Wheel",range = "A2:L157")|>
   janitor::clean_names() |>
@@ -108,11 +113,80 @@ GwynndaTrash = read_excel("202309 Trash Wheel Collection Data.xlsx",sheet = "Gwy
     homes_powered = (500 * weight_tons/30)
 )
 ```
-```{r}
+```{r, message=FALSE}
 #Then combine Professor Trash Wheel and Gwynnda with the Mr. Trash Wheel dataset to produce a single tidy dataset
 tidy_data = bind_rows(MrTrash, ProfTrash, GwynndaTrash)|>
   select(name, everything())
 ```
 
+The dataset `MrTrash`, `ProfTrash`, `GwynndaTrash` include information on the dumpter number, date of collection, amount of total litter and litter type. 
+`MrTrash` has `r nrow(MrTrash)` observations and `r ncol(MrTrash)` variables from `r MrTrash |> pull(year) |> min()` to `r MrTrash |> pull(year) |> max()`.
+`ProfTrash` has `r nrow(ProfTrash)` observations and `r ncol(ProfTrash)` variables from `r ProfTrash |> pull(year) |> min()` to `r ProfTrash |> pull(year) |> max()`.
+`GwynndaTrash` has `r nrow(GwynndaTrash)` observations and `r ncol(GwynndaTrash)` variables from `r GwynndaTrash |> pull(year) |> min()` to `r GwynndaTrash |> pull(year) |> max()`.
+
+The resulting dataset `tidy_data` contains `r nrow(tidy_data)` observations and `r ncol(tidy_data)`.
+
+The total weight of trash collected by Professor Trash Wheel is `r filter(tidy_data, name == "Professor Trash Wheel"|> pull(weight_tons) |> sum()`. 
+
+The total number of cigarette butts collected by Gwynnda in July of 2021 is `r GwynndaTrash |> filter(month == "July" & year == 2021) |> select(cigarette_butts) |> sum()`
+
+
+### Problem 3
+
+```{r, message=FALSE}
+#Import, clean, and tidy the dataset of baseline demographics
+BaselineDemo = read.csv("MCI_baseline.csv", skip = 1, na = c(".","NA"))|>
+ janitor::clean_names() |>
+  mutate(
+    sex = 
+      case_match(
+        sex, 
+        0 ~ "male", 
+        1 ~ "female"),
+    apoe4 = 
+      case_match(
+        apoe4,
+        0 ~ "non-carrier",
+        1 ~ "carrier"))|>
+  drop_na(age_at_onset)
+
+```
+
+The dataset `BaselineDemo` contains Basic demographic information about participants' ID, MCI onset time during the follow-up period, and APOE4 variant. During the import process, some participants don't have Age onset information means they are free of MCI, and they need to be removed during the importing process. Also, since the first line contains name of information instead of data, it needs to be skipped. After exclusion, this dataset has `r nrow(BaselineDemo)` observations and `r ncol(BaselineDemo)` variables.
+
+Based on the ID information `r BaselineDemo|> pull(id) |> max()` participants were recruited, and of these `r nrow(BaselineDemo)` participants developed MCI. 
+
+The average baseline age is `r BaselineDemo|> pull(current_age) |> mean()` .
+
+The proportion of women in the study are APOE4 carriers is `r (BaselineDemo |> filter(sex == "female" & apoe4 == "carrier") |> count()) / (BaselineDemo |> filter(sex == "female") |> count()) * 100|> round(0)`
+
+```{r, message=FALSE}
+# import, clean, and tidy the dataset of longitudinally observed biomarker values
+Amiloid = read.csv("mci_amyloid.csv", skip = 1) |>
+  janitor::clean_names() |>
+  rename(id = study_id) |>
+  pivot_longer(
+    baseline:time_8,
+    names_to = "time period", 
+    values_to = "amyloid ratio")
+```
+The dataset `Amiloid` contains information of The amyloid β 42/40 ratio which holds significant promise for diagnosing and predicting disease outcomes. This ratio undergoes changes over different time period and has been linked to the manifestation of clinical symptoms of Alzheimer’s disease. 
+
+During the import process, since the first line contains name of information instead of data, it needs to be skipped. Moreover, since two datasets need to be merged together, the ID should be named the same. 
+
+This dataset has `r nrow(Amiloid)` observations and `r ncol(Amiloid)` variables.
+
+
+```{r, message=FALSE}
+#Combine the demographic and biomarker datasets so that only participants who appear in both datasets are retained
+combined_data = left_join(BaselineDemo, Amiloid, by = "id")
+```
+Total of `r nrow(combined_data)` observations appear in both datasets
+
+```{r}
+# exporting the results
+
+write.csv(combined_data, "combined_data.csv", row.names=TRUE)
+```
 
 
